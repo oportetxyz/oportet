@@ -1,7 +1,7 @@
 /**
  * JSON-RPC Schema.
  *
- * @see https://github.com/onrampxyz/oportet-relay/blob/main/src/rpc/relay.rs
+ * @see https://github.com/oportetxyz/relay/blob/main/src/rpc/relay.rs
  */
 
 import type * as RpcSchema_ox from 'ox/RpcSchema'

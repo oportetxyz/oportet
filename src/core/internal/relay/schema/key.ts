@@ -1,7 +1,7 @@
 /**
  * RPC account key.
  *
- * @see https://github.com/onrampxyz/oportet-relay/blob/main/src/types/key.rs
+ * @see https://github.com/oportetxyz/relay/blob/main/src/types/key.rs
  */
 
 import * as z from 'zod/mini'

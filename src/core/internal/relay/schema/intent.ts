@@ -1,7 +1,7 @@
 /**
  * Intent.
  *
- * @see https://github.com/onrampxyz/oportet-relay/tree/main/src/types/intent
+ * @see https://github.com/oportetxyz/relay/tree/main/src/types/intent
  */
 
 import * as z from 'zod/mini'

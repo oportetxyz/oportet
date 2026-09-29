@@ -1,7 +1,7 @@
 /**
  * RPC quote.
  *
- * @see https://github.com/onrampxyz/oportet-relay/blob/main/src/types/quote.rs
+ * @see https://github.com/oportetxyz/relay/blob/main/src/types/quote.rs
  */
 
 import { z } from 'zod/mini'

@@ -4,7 +4,7 @@
   "baseBranch": "main",
   "changelog": [
     "@changesets/changelog-github",
-    { "repo": "onrampxyz/oportet" }
+    { "repo": "oportetxyz/oportet" }
   ],
   "commit": false,
   "fixed": [],

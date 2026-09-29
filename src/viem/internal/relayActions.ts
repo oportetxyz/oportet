@@ -1,7 +1,7 @@
 /**
  * Actions for Porto Relay.
  *
- * @see https://github.com/onrampxyz/oportet-relay/
+ * @see https://github.com/oportetxyz/relay/
  */
 
 import * as AbiError from 'ox/AbiError'
