@@ -196,7 +196,7 @@
   "[!start-pkg]": {},
   "name": "oportet",
   "description": "Next-gen Account for Ethereum",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "type": "module",
   "bin": {
     "porto": "./dist/cli/bin/index.js"
