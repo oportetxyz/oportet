@@ -6,6 +6,12 @@ on:
         description: "The URL of the uploaded extension artifact"
         value: ${{ jobs.extension.outputs.artifact-url }}
 
+env:
+  # A stalled cache restore (as when the account is over its cache egress
+  # limit) otherwise holds the job for the default 10 minute segment timeout
+  # before carrying on as a cache miss.
+  SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
+
 jobs:
   extension:
     name: Extension

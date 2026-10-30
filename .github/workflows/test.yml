@@ -47,6 +47,9 @@ on:
 
 env:
    ACTIONS_RUNNER_DEBUG: true
+   # A stalled cache restore otherwise holds the job for the default 10 minute
+   # segment timeout before carrying on as a cache miss.
+   SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
 
 jobs:
   relay-release:

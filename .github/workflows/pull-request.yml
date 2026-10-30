@@ -7,6 +7,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
+env:
+  # A stalled cache restore (as when the account is over its cache egress
+  # limit) otherwise holds the job for the default 10 minute segment timeout
+  # before carrying on as a cache miss.
+  SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
+
 jobs:
   verify:
     name: Verify
@@ -87,7 +93,7 @@ jobs:
   size:
     name: Size
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     permissions:
       pull-requests: write
 
