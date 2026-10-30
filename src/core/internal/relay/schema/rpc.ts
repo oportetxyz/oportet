@@ -738,6 +738,8 @@ export namespace wallet_prepareUpgradeAccount {
       authorization: Authorization,
       /** Chain ID to initialize the account on. */
       chainId: u.number(),
+      /** Metadata of the WebAuthn keys the pre-call authorizes. */
+      keyMetadata: z.optional(z.readonly(z.array(Key.MetadataEntry))),
       /** Unsigned pre-call to be signed by the EOA root key. */
       preCall: PreCall.PreCall,
     }),
@@ -848,6 +850,8 @@ export namespace wallet_upgradeAccount {
       authorization: Authorization,
       /** Chain ID to initialize the account on. */
       chainId: u.number(),
+      /** Metadata of the WebAuthn keys the pre-call authorizes. */
+      keyMetadata: z.optional(z.readonly(z.array(Key.MetadataEntry))),
       /** Unsigned pre-call to be signed by the EOA root key. */
       preCall: PreCall.PreCall,
     }),

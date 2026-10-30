@@ -1420,3 +1420,126 @@ describe('getFeeToken', () => {
     expect(result?.value).toMatchInlineSnapshot('10000000000000000n')
   })
 })
+
+describe('getCredentialMetadata', () => {
+  const id = 'm1-bMPuAqpWhCxHZQZTT6e-lSPntQbh3opIoGe7g4Qs'
+
+  test('behavior: security key', () => {
+    expect(
+      Key.getCredentialMetadata({
+        id,
+        raw: {
+          authenticatorAttachment: 'cross-platform',
+          response: { getTransports: () => ['usb', 'nfc', 'usb'] },
+        },
+      }),
+    ).toMatchInlineSnapshot(`
+      {
+        "attachment": "cross-platform",
+        "credentialId": "m1-bMPuAqpWhCxHZQZTT6e-lSPntQbh3opIoGe7g4Qs",
+        "transports": [
+          "usb",
+          "nfc",
+        ],
+      }
+    `)
+  })
+
+  test('behavior: platform passkey without transports', () => {
+    expect(
+      Key.getCredentialMetadata({
+        id,
+        raw: { authenticatorAttachment: 'platform', response: {} },
+      }),
+    ).toEqual({ attachment: 'platform', credentialId: id })
+  })
+
+  test('behavior: nothing reported', () => {
+    expect(Key.getCredentialMetadata({ id })).toBeUndefined()
+    expect(
+      Key.getCredentialMetadata({
+        id,
+        raw: { authenticatorAttachment: null, response: {} },
+      }),
+    ).toBeUndefined()
+  })
+
+  test('behavior: drops values the relay would reject', () => {
+    expect(
+      Key.getCredentialMetadata({
+        id: 'not+base64url/',
+        raw: {
+          authenticatorAttachment: 'roaming',
+          response: {
+            getTransports: () => ['USB', 'hybrid', 'a'.repeat(33), 7],
+          },
+        },
+      }),
+    ).toEqual({ transports: ['hybrid'] })
+    expect(
+      Key.getCredentialMetadata({
+        id: 'a'.repeat(1365),
+        raw: {
+          response: {
+            getTransports: () =>
+              Array.from({ length: 10 }, (_, i) => 'x'.repeat(i + 1)),
+          },
+        },
+      }),
+    ).toEqual({
+      transports: Array.from({ length: 8 }, (_, i) => 'x'.repeat(i + 1)),
+    })
+  })
+})
+
+describe('metadata', () => {
+  const credential = {
+    id: 'm1-bMPuAqpWhCxHZQZTT6e-lSPntQbh3opIoGe7g4Qs',
+    publicKey: PublicKey.fromHex(
+      '0x04ab891400140fc4f8e941ce0ff90e419de9470acaca613bbd717a4775435031a7d884318e919fd3b3e5a631d866d8a380b44063e70f0c381ee16e0652f7f97554',
+    ),
+  }
+  const metadata = {
+    attachment: 'cross-platform',
+    credentialId: credential.id,
+    transports: ['usb'],
+  } as const
+
+  test('behavior: WebAuthn key carries metadata to the relay', () => {
+    const key = Key.fromWebAuthnP256({
+      credential,
+      id: '0x0000000000000000000000000000000000000000',
+      metadata,
+    })
+    expect(key.metadata).toEqual(metadata)
+    expect(Key.toRelay(key).metadata).toEqual(metadata)
+  })
+
+  test('behavior: key without metadata sends none', () => {
+    const key = Key.fromWebAuthnP256({
+      credential,
+      id: '0x0000000000000000000000000000000000000000',
+    })
+    expect('metadata' in key).toBe(false)
+    expect('metadata' in Key.toRelay(key)).toBe(false)
+  })
+
+  test('behavior: only WebAuthn keys send metadata', () => {
+    const key = Key.fromP256({
+      privateKey:
+        '0x59ff6b8de3b3b39e94b6f9fc0590cf4e3eaa9b6736e6a49c9a6b324c4f58cb9f',
+    })
+    expect('metadata' in Key.toRelay({ ...key, metadata })).toBe(false)
+  })
+
+  test('behavior: fromRelay keeps metadata', () => {
+    const relayKey = Key.toRelay(
+      Key.fromWebAuthnP256({
+        credential,
+        id: '0x0000000000000000000000000000000000000000',
+        metadata,
+      }),
+    )
+    expect(Key.fromRelay(relayKey, { chainId: 1 }).metadata).toEqual(metadata)
+  })
+})

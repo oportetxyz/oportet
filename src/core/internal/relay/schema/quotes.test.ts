@@ -517,6 +517,36 @@ describe('Quotes', () => {
     expect(encodedData.ttl).toBe(300)
   })
 
+  test('behavior: keeps signed key metadata through decode and encode', () => {
+    const keyMetadata = [
+      {
+        attachment: 'cross-platform',
+        credentialId: 'AbC-_09',
+        keyHash:
+          '0x0909090909090909090909090909090909090909090909090909090909090909',
+        transports: ['usb', 'nfc'],
+      },
+    ]
+    const decoded = z.parse(Quotes.Quotes, { ...validQuotesData, keyMetadata })
+    expect(decoded.keyMetadata).toEqual(keyMetadata)
+    expect(z.encode(Quotes.Quotes, decoded).keyMetadata).toEqual(keyMetadata)
+  })
+
+  test('error: rejects unknown key attachment', () => {
+    expect(() =>
+      z.parse(Quotes.Quotes, {
+        ...validQuotesData,
+        keyMetadata: [
+          {
+            attachment: 'roaming',
+            keyHash:
+              '0x0909090909090909090909090909090909090909090909090909090909090909',
+          },
+        ],
+      }),
+    ).toThrow()
+  })
+
   test('error: rejects empty quotes array', () => {
     expect(() =>
       z.parse(Quotes.Quotes, {

@@ -1,4 +1,5 @@
 import * as z from 'zod/mini'
+import * as RelayKey from '../relay/schema/key.js'
 import * as Token from './token.js'
 import * as u from './utils.js'
 
@@ -11,6 +12,8 @@ export const Base = z.object({
   hash: u.hex(),
   /** The id of the key. */
   id: u.hex(),
+  /** WebAuthn credential metadata, sent to the relay with the key. */
+  metadata: z.optional(RelayKey.Metadata),
   /** Whether digests should be prehashed. */
   prehash: z.optional(z.boolean()),
   /** Public key. */
