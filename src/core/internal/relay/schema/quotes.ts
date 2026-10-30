@@ -7,6 +7,7 @@
 import { z } from 'zod/mini'
 import * as u from '../../schema/utils.js'
 import * as Intent from './intent.js'
+import * as Key from './key.js'
 
 export const AssetDeficit = z.object({
   /** Asset address. null represents the native token. */
@@ -73,6 +74,11 @@ export const Quote = z.object({
 export type Quote = z.infer<typeof Quote>
 
 export const Quotes = z.object({
+  /**
+   * Metadata of the WebAuthn keys the intents authorize. Part of the signed
+   * digest, so it has to be sent back unchanged.
+   */
+  keyMetadata: z.optional(z.readonly(z.array(Key.MetadataEntry))),
   /** Merkle root if it's a multichain workflow. */
   multiChainRoot: z.optional(z.union([u.hex(), z.null()])),
   /**

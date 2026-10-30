@@ -304,7 +304,72 @@ export async function createWebAuthnP256(
       : PublicKey.toHex(credential.publicKey, {
           includePrefix: false,
         }),
+    metadata: getCredentialMetadata(credential),
   })
+}
+
+// why: these mirror the relay's limits. A value outside them would fail the
+// whole account creation, so it is dropped here instead.
+const maxCredentialIdLength = 1364
+const maxTransports = 8
+const credentialIdPattern = /^[A-Za-z0-9_-]+$/
+const transportPattern = /^[a-z-]{1,32}$/
+
+/**
+ * Reads the attachment and transports of a newly created credential, so the
+ * relay can tell a security key from a platform passkey at sign-in.
+ *
+ * @param credential - WebAuthnP256 Credential.
+ * @returns Metadata, or `undefined` when the credential reports none.
+ */
+export function getCredentialMetadata(credential: {
+  id: string
+  raw?:
+    | {
+        authenticatorAttachment?: string | null | undefined
+        response?: object | undefined
+      }
+    | undefined
+}): RelayKey_schema.Metadata | undefined {
+  const { authenticatorAttachment, response } = credential.raw ?? {}
+
+  // why: ox types the response without `getTransports`, which browsers and
+  // the React Native create function put on the attestation response.
+  const reported: unknown =
+    response &&
+    'getTransports' in response &&
+    typeof response.getTransports === 'function'
+      ? response.getTransports()
+      : undefined
+  const transports = Array.isArray(reported)
+    ? [
+        ...new Set(
+          reported.filter(
+            (transport): transport is string =>
+              typeof transport === 'string' && transportPattern.test(transport),
+          ),
+        ),
+      ].slice(0, maxTransports)
+    : []
+
+  const attachment =
+    authenticatorAttachment === 'platform' ||
+    authenticatorAttachment === 'cross-platform'
+      ? authenticatorAttachment
+      : undefined
+
+  const credentialId =
+    credential.id.length <= maxCredentialIdLength &&
+    credentialIdPattern.test(credential.id)
+      ? credential.id
+      : undefined
+
+  if (!attachment && transports.length === 0) return undefined
+  return {
+    ...(attachment ? { attachment } : {}),
+    ...(credentialId ? { credentialId } : {}),
+    ...(transports.length > 0 ? { transports } : {}),
+  }
 }
 
 export declare namespace createWebAuthnP256 {
@@ -649,6 +714,7 @@ export function fromRelay(relayKey: Relay, options: { chainId: number }): Key {
   return from({
     chainId,
     expiry: relayKey.expiry,
+    ...(relayKey.metadata ? { metadata: relayKey.metadata } : {}),
     permissions: permissions as Permissions,
     publicKey: relayKey.publicKey,
     role: fromRelayKeyRole[relayKey.role],
@@ -747,7 +813,7 @@ export declare namespace fromSecp256k1 {
  * @returns WebAuthnP256 key.
  */
 export function fromWebAuthnP256(parameters: fromWebAuthnP256.Parameters) {
-  const { credential, id, rpId } = parameters
+  const { credential, id, metadata, rpId } = parameters
   const publicKey = PublicKey.toHex(credential.publicKey, {
     includePrefix: false,
   })
@@ -756,6 +822,7 @@ export function fromWebAuthnP256(parameters: fromWebAuthnP256.Parameters) {
     expiry: parameters.expiry ?? 0,
     feeToken: parameters.feeToken,
     id,
+    ...(metadata ? { metadata } : {}),
     permissions: parameters.permissions,
     privateKey: {
       credential,
@@ -770,7 +837,13 @@ export function fromWebAuthnP256(parameters: fromWebAuthnP256.Parameters) {
 export declare namespace fromWebAuthnP256 {
   type Parameters = Pick<
     from.Value,
-    'chainId' | 'expiry' | 'feeToken' | 'id' | 'permissions' | 'role'
+    | 'chainId'
+    | 'expiry'
+    | 'feeToken'
+    | 'id'
+    | 'metadata'
+    | 'permissions'
+    | 'role'
   > & {
     /** WebAuthnP256 Credential. */
     credential: Pick<WebAuthnP256.P256Credential, 'id' | 'publicKey'>
@@ -1249,7 +1322,14 @@ export function toRelay(
   key: toRelay.Value,
   options: toRelay.Options = {},
 ): RequiredBy<Relay, 'prehash'> {
-  const { expiry = 0, prehash = false, publicKey, role = 'admin', type } = key
+  const {
+    expiry = 0,
+    metadata,
+    prehash = false,
+    publicKey,
+    role = 'admin',
+    type,
+  } = key
   const { feeTokens, orchestrator } = options
 
   // biome-ignore lint/complexity/useFlatMap: i know
@@ -1302,6 +1382,7 @@ export function toRelay(
 
   return {
     expiry,
+    ...(type === 'webauthn-p256' && metadata ? { metadata } : {}),
     permissions: permissions ?? [],
     prehash,
     publicKey: serializePublicKey(publicKey),
@@ -1314,7 +1395,13 @@ export declare namespace toRelay {
   type Value = PartialBy<
     Pick<
       Key,
-      'expiry' | 'prehash' | 'permissions' | 'publicKey' | 'role' | 'type'
+      | 'expiry'
+      | 'metadata'
+      | 'prehash'
+      | 'permissions'
+      | 'publicKey'
+      | 'role'
+      | 'type'
     >,
     'expiry' | 'role'
   >
