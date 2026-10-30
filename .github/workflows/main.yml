@@ -7,6 +7,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # A stalled cache restore (as when the account is over its cache egress
+  # limit) otherwise holds the job for the default 10 minute segment timeout
+  # before carrying on as a cache miss.
+  SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
+
 jobs:
   verify:
     name: Verify
@@ -25,7 +31,7 @@ jobs:
     name: Publish (dry-run)
     needs: [verify]
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Clone repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v5
@@ -62,7 +68,7 @@ jobs:
       id-token: write
       pull-requests: write
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Clone repository
