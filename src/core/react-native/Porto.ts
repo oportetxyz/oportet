@@ -16,13 +16,18 @@ export const defaultConfig = {
 } as const satisfies Partial<Porto.Config>
 
 /**
- * Instantiates a Porto instance with React Native mode.
+ * Instantiates a Porto instance for React Native.
+ *
+ * `mode` stays optional in the types, but React Native has no default that can
+ * run: the default dialog mode has no `host`.
  */
 export function create(
   parameters: ExactPartial<Porto.Config> | undefined = {},
 ): Porto.Porto {
-  return Porto.create({
-    ...parameters,
-    mode: parameters.mode ?? defaultConfig.mode,
-  })
+  if (!parameters.mode)
+    throw new Error(
+      '`Porto.create()` needs a `mode` on React Native. Pass one, for example `Mode.relay({ webAuthn })`.',
+    )
+
+  return Porto.create(parameters)
 }
