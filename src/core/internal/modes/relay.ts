@@ -18,6 +18,7 @@ import * as RelayActions from '../../../viem/RelayActions.js'
 import { localStorage } from '../../Storage.js'
 import * as Erc8010 from '../erc8010.js'
 import * as Mode from '../mode.js'
+import * as PasskeyAssertion from '../passkeyAssertion.js'
 import * as PermissionsRequest from '../permissionsRequest.js'
 import * as RequiredFunds from '../requiredFunds.js'
 import * as Siwe from '../siwe.js'
@@ -429,6 +430,7 @@ export function relay(parameters: relay.Parameters = {}) {
           address,
           credentialId,
           publicKey: selectedPublicKey,
+          assertedChallenge,
           webAuthnSignature,
           rdns,
           providerSignature,
@@ -453,14 +455,10 @@ export function relay(parameters: relay.Parameters = {}) {
               // flows into wrapSignature below (matches the discovery branch).
               const replaySafeDigest =
                 digest !== '0x'
-                  ? TypedData.getSignPayload({
-                      domain: { verifyingContract: parameters.address },
-                      message: { digest },
-                      primaryType: 'ERC1271Sign',
-                      types: {
-                        ERC1271Sign: [{ name: 'digest', type: 'bytes32' }],
-                      },
-                    })
+                  ? PasskeyAssertion.replaySafeDigest(
+                      parameters.address,
+                      digest,
+                    )
                   : undefined
               const webAuthnSignature = replaySafeDigest
                 ? await WebAuthnP256.sign({
@@ -517,9 +515,18 @@ export function relay(parameters: relay.Parameters = {}) {
           // Discovery step. We need to do this to extract the key id
           // to query for the Account.
           // We will also optionally sign over a digest to authorize
-          // a session key if the user has provided one.
+          // a session key if the user has provided one. A digest is only ever
+          // set alongside `parameters.address`, and the account's ERC-1271
+          // check rejects it unwrapped, as in the branch above. With a named
+          // account and nothing to sign, a random challenge still lets the
+          // assertion be checked below, which an empty one cannot.
+          const challenge = (() => {
+            if (!parameters.address) return digest
+            if (digest === '0x') return Hex.random(32)
+            return PasskeyAssertion.replaySafeDigest(parameters.address, digest)
+          })()
           const webAuthnSignature = await WebAuthnP256.sign({
-            challenge: digest,
+            challenge,
             getFn: webAuthn?.getFn,
             rpId: keystoreHost,
           }).catch(U.rethrowUserRejection)
@@ -529,12 +536,19 @@ export function relay(parameters: relay.Parameters = {}) {
           // The user handle starts with the account address; a passkey added
           // next to the first one carries random bytes after it, so that the
           // authenticator keeps both instead of replacing one with the other.
-          const address = Bytes.toHex(
-            new Uint8Array(response.userHandle!).slice(0, 20),
-          )
+          // The handle is only a lookup hint: an account the caller named
+          // stands, and the assertion is checked against its keys below.
+          const address =
+            parameters.address ??
+            Bytes.toHex(new Uint8Array(response.userHandle!).slice(0, 20))
           const credentialId = webAuthnSignature.raw.id
 
-          return { address, credentialId, webAuthnSignature }
+          return {
+            address,
+            assertedChallenge: parameters.address ? challenge : undefined,
+            credentialId,
+            webAuthnSignature,
+          }
         })()
 
         const providerRdns = rdns ?? _providerRdns
@@ -544,15 +558,33 @@ export function relay(parameters: relay.Parameters = {}) {
           chainIds: [client.chain.id],
         })
 
-        // The key the caller selected by public key carries the credential;
-        // without a selection, assume the first key is the admin WebAuthn key.
+        // A passkey picked from the system sheet for a named account has to be
+        // one of that account's keys. Nothing else stands between a passkey of
+        // some other account and a connect that reports success.
+        const assertedIndex =
+          assertedChallenge && webAuthnSignature
+            ? PasskeyAssertion.findAdminKeyIndex(
+                keys,
+                assertedChallenge,
+                webAuthnSignature,
+              )
+            : undefined
+        if (assertedIndex === -1)
+          throw new Provider.UnauthorizedError({
+            message: 'Passkey is not a key of this account.',
+          })
+
+        // The key that signed, or the one the caller selected by public key,
+        // carries the credential; without either, assume the first key is the
+        // admin WebAuthn key.
         const selectedIndex = selectedPublicKey
           ? keys.findIndex(
               (key) =>
                 key.publicKey.toLowerCase() === selectedPublicKey.toLowerCase(),
             )
           : -1
-        const adminIndex = selectedIndex === -1 ? 0 : selectedIndex
+        const adminIndex =
+          assertedIndex ?? (selectedIndex === -1 ? 0 : selectedIndex)
 
         // Instantiate the account based off the extracted address and keys.
         const account = Account.from({
