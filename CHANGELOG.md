@@ -1,5 +1,13 @@
 # porto
 
+## 0.6.2
+
+### Patch Changes
+
+- [#14](https://github.com/oportetxyz/oportet/pull/14) [`34a19f8`](https://github.com/oportetxyz/oportet/commit/34a19f8920b615b3b923e77b95d2975afbb64245) Thanks [@0xKrauser](https://github.com/0xKrauser)! - Importing the React Native entry no longer warns that `react-native-passkeys` is missing. `Porto.defaultConfig.mode` is now built the first time it is read, so an app that passes its own mode to `Porto.create()` never builds it. A missing module still warns when the default mode is used.
+
+- [#16](https://github.com/oportetxyz/oportet/pull/16) [`1e62f06`](https://github.com/oportetxyz/oportet/commit/1e62f06f85c0d1aff59894a25771ea355b08470d) Thanks [@0xKrauser](https://github.com/0xKrauser)! - `Porto.create()` from the React Native entry now throws a plain error asking for a `mode` when none is passed, in place of the dialog `host` error raised during setup. The types are unchanged.
+
 ## 0.6.1
 
 ### Patch Changes
