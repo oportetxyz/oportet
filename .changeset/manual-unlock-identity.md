@@ -2,4 +2,4 @@
 "oportet": patch
 ---
 
-`loadAccounts` with an address and no key now signs the replay-safe digest the account's ERC-1271 check needs, and refuses a passkey that is not an admin key of that account. A second passkey on the account is matched by its signature instead of being taken for the first key.
+Fixed `loadAccounts` for an address with no key: it signed a digest the account's ERC-1271 check rejects, took the account from the passkey's user handle, and took any passkey for the first key. A passkey that is not an admin key of the account is now refused, and the retry after a stale key keeps the address.

@@ -76,8 +76,17 @@ function passkey() {
   } as const
 }
 
-function onChain(...keys: ReturnType<typeof passkey>['key'][]) {
-  vi.mocked(RelayActions.getKeys).mockResolvedValue(keys as never)
+type ChainKey = ReturnType<typeof passkey>['key']
+
+/** The keys each account holds, looked up by account as the relay does, so a
+ *  path that loads the wrong account gets that account's keys. */
+function onChain(keys: ChainKey | ChainKey[], others: ChainKey[] = []) {
+  const owned = Array.isArray(keys) ? keys : [keys]
+
+  vi.mocked(RelayActions.getKeys).mockImplementation((async (
+    _: unknown,
+    { account: requested }: { account: string },
+  ) => (requested === account ? owned : others)) as never)
 }
 
 async function unlock(signIn = true) {
@@ -90,12 +99,27 @@ async function unlock(signIn = true) {
   return accounts[0]!
 }
 
+describe('loadAccounts with no account named', () => {
+  test('behavior: takes the account from the handle and checks no assertion', async () => {
+    const someone = passkey()
+    onChain([], [someone.key])
+    someone.pick(stranger)
+
+    const { accounts } = await relay().actions.loadAccounts({
+      internal: { client: { chain: { id: 1 } } },
+    } as never)
+
+    expect(accounts[0]?.address).toBe(stranger)
+    expect(vi.mocked(WebAuthnP256.sign).mock.lastCall?.[0].challenge).toBe('0x')
+  })
+})
+
 describe('loadAccounts for a named account, no key', () => {
   beforeEach(() => {
     vi.mocked(WebAuthnP256.sign).mockReset()
   })
 
-  test('has the passkey sign what the account will verify', async () => {
+  test('behavior: has the passkey sign what the account will verify', async () => {
     const owner = passkey()
     onChain(owner.key)
     owner.pick(account)
@@ -107,7 +131,7 @@ describe('loadAccounts for a named account, no key', () => {
     )
   })
 
-  test('connects the owner', async () => {
+  test('behavior: connects the owner', async () => {
     const owner = passkey()
     onChain(owner.key)
     owner.pick(account)
@@ -118,16 +142,27 @@ describe('loadAccounts for a named account, no key', () => {
     expect(result.signInWithEthereum?.message).toBe(message)
   })
 
-  test('refuses a passkey of another account, whose handle says so', async () => {
+  test('error: a passkey of another account, even one whose keys it matches', async () => {
     const owner = passkey()
     const other = passkey()
-    onChain(owner.key)
+    onChain(owner.key, [other.key])
     other.pick(stranger)
 
     await expect(unlock()).rejects.toThrow('not a key of this account')
+    expect(vi.mocked(RelayActions.getKeys).mock.lastCall?.[1].account).toBe(
+      account,
+    )
   })
 
-  test('refuses a passkey whose handle forges the account', async () => {
+  test('behavior: an owner passkey connects whatever its handle claims', async () => {
+    const owner = passkey()
+    onChain(owner.key)
+    owner.pick(stranger)
+
+    await expect(unlock()).resolves.toMatchObject({ address: account })
+  })
+
+  test('error: a passkey whose handle forges the account', async () => {
     const owner = passkey()
     const thief = passkey()
     onChain(owner.key)
@@ -136,7 +171,7 @@ describe('loadAccounts for a named account, no key', () => {
     await expect(unlock()).rejects.toThrow('not a key of this account')
   })
 
-  test('refuses a foreign passkey even with nothing to sign', async () => {
+  test('error: a foreign passkey with nothing to sign', async () => {
     const owner = passkey()
     const thief = passkey()
     onChain(owner.key)
@@ -145,7 +180,7 @@ describe('loadAccounts for a named account, no key', () => {
     await expect(unlock(false)).rejects.toThrow('not a key of this account')
   })
 
-  test('connects the owner with nothing to sign', async () => {
+  test('behavior: connects the owner with nothing to sign', async () => {
     const owner = passkey()
     onChain(owner.key)
     owner.pick(account)
@@ -153,10 +188,10 @@ describe('loadAccounts for a named account, no key', () => {
     await expect(unlock(false)).resolves.toMatchObject({ address: account })
   })
 
-  test('signs with the second passkey as the second key', async () => {
+  test('behavior: signs with the second passkey as the second key', async () => {
     const first = passkey()
     const second = passkey()
-    onChain(first.key, second.key)
+    onChain([first.key, second.key])
     second.pick(account)
 
     const result = await unlock()
