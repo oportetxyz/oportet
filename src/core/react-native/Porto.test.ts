@@ -29,27 +29,29 @@ describe('react-native Porto', () => {
     expect(warn).not.toHaveBeenCalled()
   })
 
-  test('behavior: a mode passed to create() builds no default', async () => {
+  test('behavior: a mode passed to create() is used and builds no default', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { create } = await load()
     const { relay } = await import('../Mode.js')
+    const mode = relay({ webAuthn: { createFn: vi.fn(), getFn: vi.fn() } })
 
-    create({ mode: relay({ webAuthn: { createFn: vi.fn(), getFn: vi.fn() } }) })
-
+    expect(create({ mode })._internal.config.mode).toBe(mode)
     expect(warn).not.toHaveBeenCalled()
   })
 
-  test('behavior: create() with nothing uses one shared default', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const { create, defaultConfig } = await load()
-    const mode = defaultConfig.mode
-    // why: the default's dialog has no host to set up against; what is under
-    // test is which mode create() picks.
-    vi.spyOn(mode, 'setup').mockReturnValue(() => {})
+  test.each([
+    ['nothing', undefined],
+    ['no mode', {}],
+    ['an undefined mode', { mode: undefined }],
+    ['a null mode', { mode: null }],
+  ])('error: create() with %s says to pass a mode', async (_, parameters) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { create } = await load()
 
-    expect(mode.name).toBe('reactNative')
-    expect(create()._internal.config.mode).toBe(mode)
-    expect(create()._internal.config.mode).toBe(mode)
+    expect(() => create(parameters)).toThrow(
+      '`Porto.create()` needs a `mode` on React Native. Pass one, for example `Mode.relay({ webAuthn })`.',
+    )
+    expect(warn).not.toHaveBeenCalled()
   })
 
   test('behavior: a missing module still warns once the default is used', async () => {
