@@ -872,10 +872,13 @@ export function from<
                     throw error
 
                   // error with `address`/`key` likely means one or both are stale, retry
+                  // Only the key goes: dropping the address too would hand the
+                  // account to whatever the next passkey's user handle claims.
                   if (address && key)
-                    return await getMode().actions.loadAccounts(
-                      loadAccountsParams,
-                    )
+                    return await getMode().actions.loadAccounts({
+                      address,
+                      ...loadAccountsParams,
+                    })
                   throw error
                 }
               })()
