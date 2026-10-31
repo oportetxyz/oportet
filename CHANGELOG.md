@@ -1,5 +1,11 @@
 # porto
 
+## 0.6.3
+
+### Patch Changes
+
+- [#17](https://github.com/oportetxyz/oportet/pull/17) [`abeb163`](https://github.com/oportetxyz/oportet/commit/abeb163b2595500febc0d76d03efcb095a46ba94) Thanks [@0xKrauser](https://github.com/0xKrauser)! - Fixed `loadAccounts` for an address with no key: it signed a digest the account's ERC-1271 check rejects, took the account from the passkey's user handle, and took any passkey for the first key. A passkey that is not an admin key of the account is now refused, and the retry after a stale key keeps the address.
+
 ## 0.6.2
 
 ### Patch Changes
