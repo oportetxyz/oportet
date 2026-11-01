@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import * as z from 'zod/mini'
 import * as Quotes from './quotes.js'
+import * as RpcSchema from './rpc.js'
 
 describe('Quote', () => {
   const validQuoteData = {
@@ -927,5 +928,110 @@ describe('Signed', () => {
     expect(signedDecoded.s).toBeDefined()
     expect(signedDecoded.v).toBeDefined()
     expect(signedDecoded.yParity).toBeDefined()
+  })
+})
+
+describe('feePayerQuote', () => {
+  const address = (byte: string) => `0x${byte.repeat(20)}`
+  const quote = (eoa: string, chainId: string) => ({
+    additionalAuthorization: null,
+    authorizationAddress: null,
+    chainId,
+    ethPrice: '0xde0b6b3a7640000',
+    extraPayment: '0x0',
+    feeTokenDeficit: '0x0',
+    intent: {
+      combinedGas: '0x186a0',
+      encodedFundTransfers: [],
+      encodedPreCalls: [],
+      eoa,
+      executionData: '0xabcdef',
+      expiry: '0x0',
+      funder: address('00'),
+      funderSignature: '0x',
+      isMultichain: false,
+      nonce: '0x1',
+      payer: address('00'),
+      paymentAmount: '0x12c',
+      paymentMaxAmount: '0x190',
+      paymentRecipient: address('00'),
+      paymentSignature: '0x',
+      paymentToken: address('0a'),
+      settler: address('00'),
+      settlerContext: '0x',
+      signature: '0x',
+      supportedAccountImplementation: address('0b'),
+    },
+    nativeFeeEstimate: {
+      maxFeePerGas: '0x3b9aca00',
+      maxPriorityFeePerGas: '0x59682f00',
+    },
+    orchestrator: address('0c'),
+    paymentTokenDecimals: 6,
+    txGas: '0x5208',
+  })
+  // Shape of `context.quote` in the relay's cross-chain fee payer e2e snapshot.
+  const signed = {
+    hash: `0x${'11'.repeat(32)}`,
+    multiChainRoot: `0x${'22'.repeat(32)}`,
+    quotes: [quote(address('01'), '0x1')],
+    r: `0x${'33'.repeat(32)}`,
+    s: `0x${'44'.repeat(32)}`,
+    ttl: 1893456000,
+    yParity: '0x0',
+  }
+  const feePayerQuote = quote(address('02'), '0x2105')
+
+  function roundTrip(wire: Record<string, unknown>) {
+    const { context } = z.parse(RpcSchema.wallet_prepareCalls.Response, {
+      capabilities: {},
+      context: { quote: wire },
+      digest: '0xabcdef',
+      signature: '0xabcdef',
+      typedData: {
+        domain: {},
+        message: {},
+        primaryType: 'Intent',
+        types: {},
+      },
+    })
+    const { context: sent } = z.encode(
+      RpcSchema.wallet_sendPreparedCalls.Parameters,
+      { capabilities: {}, context, signature: '0xabcdef' },
+    )
+    return sent.quote
+  }
+
+  test('behavior: relay gets the fee payer quote back unchanged', () => {
+    const wire = { ...signed, feePayerQuote }
+    expect(roundTrip(wire)).toEqual(wire)
+  })
+
+  test('behavior: keeps the null the relay sends when there is no fee payer', () => {
+    const wire = { ...signed, feePayerQuote: null }
+    expect(roundTrip(wire)).toEqual(wire)
+  })
+
+  test('behavior: stays absent when the relay leaves it out', () => {
+    expect(roundTrip(signed)).toEqual(signed)
+  })
+
+  test('behavior: is read as a quote, with hex values decoded', () => {
+    const { feePayerQuote: decoded } = z.parse(Quotes.Quotes, {
+      ...signed,
+      feePayerQuote,
+    })
+    expect(decoded?.chainId).toBe(8453)
+    expect(decoded?.intent.eoa).toBe(address('02'))
+    expect(decoded?.txGas).toBe(21000n)
+  })
+
+  test('error: rejects a malformed fee payer quote', () => {
+    expect(() =>
+      z.parse(Quotes.Quotes, {
+        ...signed,
+        feePayerQuote: { ...feePayerQuote, orchestrator: 'invalid' },
+      }),
+    ).toThrow()
   })
 })

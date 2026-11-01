@@ -75,6 +75,12 @@ export type Quote = z.infer<typeof Quote>
 
 export const Quotes = z.object({
   /**
+   * Quote for the fee payer's own intent, when it pays from another chain.
+   * The relay builds the fee payer transaction from this field on send. It
+   * sends `null` when there is none, so `null` has to be accepted here.
+   */
+  feePayerQuote: z.optional(z.union([Quote, z.null()])),
+  /**
    * Metadata of the WebAuthn keys the intents authorize. Part of the signed
    * digest, so it has to be sent back unchanged.
    */
