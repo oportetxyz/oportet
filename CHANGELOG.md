@@ -1,5 +1,11 @@
 # porto
 
+## 0.6.4
+
+### Patch Changes
+
+- [#19](https://github.com/oportetxyz/oportet/pull/19) [`7bebc8b`](https://github.com/oportetxyz/oportet/commit/7bebc8b9a60eb8e61d17c8eb58f84e47fbef165e) Thanks [@0xKrauser](https://github.com/0xKrauser)! - Kept `feePayerQuote` on relay quotes through decode and re-encode, so the relay gets it back on `wallet_sendPreparedCalls`.
+
 ## 0.6.3
 
 ### Patch Changes
