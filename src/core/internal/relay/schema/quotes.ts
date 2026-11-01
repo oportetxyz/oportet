@@ -88,6 +88,11 @@ export const Quotes = z.object({
   /** Merkle root if it's a multichain workflow. */
   multiChainRoot: z.optional(z.union([u.hex(), z.null()])),
   /**
+   * Who a sponsored quote counts against. Part of the signed digest, so it has
+   * to be sent back unchanged.
+   */
+  quotaSubject: z.optional(z.string()),
+  /**
    * A quote for each intent.
    *
    * - For a single-chain workflow, this will have exactly one item, the output intent.
