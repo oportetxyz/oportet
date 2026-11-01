@@ -931,7 +931,7 @@ describe('Signed', () => {
   })
 })
 
-describe('feePayerQuote', () => {
+describe('relay round trip', () => {
   const address = (byte: string) => `0x${byte.repeat(20)}`
   const quote = (eoa: string, chainId: string) => ({
     additionalAuthorization: null,
@@ -1024,6 +1024,25 @@ describe('feePayerQuote', () => {
     expect(decoded?.chainId).toBe(8453)
     expect(decoded?.intent.eoa).toBe(address('02'))
     expect(decoded?.txGas).toBe(21000n)
+  })
+
+  test('behavior: relay gets the quota subject back unchanged', () => {
+    const wire = { ...signed, quotaSubject: 'user-1' }
+    expect(roundTrip(wire)).toEqual(wire)
+  })
+
+  test('behavior: is read as the string the relay sent', () => {
+    const { quotaSubject } = z.parse(Quotes.Quotes, {
+      ...signed,
+      quotaSubject: 'user-1',
+    })
+    expect(quotaSubject).toBe('user-1')
+  })
+
+  test('error: rejects a quota subject that is not a string', () => {
+    expect(() =>
+      z.parse(Quotes.Quotes, { ...signed, quotaSubject: 1 }),
+    ).toThrow()
   })
 
   test('error: rejects a malformed fee payer quote', () => {
