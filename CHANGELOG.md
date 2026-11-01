@@ -1,5 +1,11 @@
 # porto
 
+## 0.6.5
+
+### Patch Changes
+
+- [#21](https://github.com/oportetxyz/oportet/pull/21) [`e66553c`](https://github.com/oportetxyz/oportet/commit/e66553cbf1194ead9fef443cbc996c4a6932381c) Thanks [@0xKrauser](https://github.com/0xKrauser)! - Kept `quotaSubject` on relay quotes through decode and re-encode, so the relay gets it back on `wallet_sendPreparedCalls`.
+
 ## 0.6.4
 
 ### Patch Changes
